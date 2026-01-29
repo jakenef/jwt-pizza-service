@@ -4,7 +4,7 @@ const request = require("supertest");
 const app = require("../service");
 const { createAdminUser, randomName } = require("../utils/test/dataHelpers");
 
-let adminToken, franchiseId;
+let adminToken, franchiseId, storeId, menuId;
 
 beforeAll(async () => {
   const adminUser = await createAdminUser();
@@ -21,6 +21,27 @@ beforeAll(async () => {
     .set("Authorization", `Bearer ${adminToken}`)
     .send(franchise);
   franchiseId = createFranchiseRes.body.id;
+  const store = {
+    franchiseId,
+    name: randomName(),
+  };
+  const createStoreRes = await request(app)
+    .post(`/api/franchise/${franchiseId}/store`)
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send(store);
+  storeId = createStoreRes.body.id;
+  const newItem = {
+    title: "Student",
+    description: "Just carbs",
+    image: "pizza9.png",
+    price: 0.0001,
+  };
+  const createMenuRes = await request(app)
+    .put("/api/order/menu")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send(newItem);
+  const menu = createMenuRes.body;
+  menuId = menu.find((item) => item.title === "Student").id;
 });
 
 test("add menu item", async () => {
@@ -49,7 +70,19 @@ test("get menu", async () => {
 test("create order", async () => {
   const orderReq = {
     franchiseId,
-    storeId: 1,
-    items: [{ menuId: 1, description: "Veggie", price: 0.05 }],
+    storeId,
+    items: [{ menuId, description: "Just carbs", price: 0.0001 }],
   };
+  const res = await request(app)
+    .post("/api/order")
+    .set("Authorization", `Bearer ${adminToken}`)
+    .send(orderReq);
+
+  expect(res.body).toMatchObject({
+    order: {
+      franchiseId,
+      storeId,
+      items: [{ menuId, description: "Just carbs", price: 0.0001 }],
+    },
+  });
 });
