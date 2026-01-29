@@ -3,10 +3,8 @@
 const request = require("supertest");
 const app = require("../service");
 const { expectValidJwt } = require("../utils/test/expectHelpers");
-const { createAdminUser } = require("../utils/test/dataHelpers");
 
 const testUser = { name: "pizza diner", email: "reg@test.com", password: "a" };
-const adminUser = createAdminUser();
 let testUserAuthToken;
 let testUserId;
 
