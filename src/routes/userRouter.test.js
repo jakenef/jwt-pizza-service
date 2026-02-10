@@ -3,6 +3,7 @@
 const request = require("supertest");
 const app = require("../service");
 const { expectValidJwt } = require("../utils/test/expectHelpers");
+const { registerUser } = require("../utils/test/dataHelpers");
 
 const testUser = { name: "pizza diner", email: "reg@test.com", password: "a" };
 let testUserAuthToken;
@@ -42,3 +43,18 @@ test("delete user", async () => {
   const deleteUserRes = await request(app).delete(`/api/user/${testUserId}`);
   expect(deleteUserRes).toBeDefined();
 });
+
+test("list users unauthorized", async () => {
+  const listUsersRes = await request(app).get("/api/user");
+  expect(listUsersRes.status).toBe(401);
+});
+
+test("list users", async () => {
+  const [user, userToken] = await registerUser(request(app));
+  const listUsersRes = await request(app)
+    .get("/api/user")
+    .set("Authorization", "Bearer " + userToken);
+  expect(listUsersRes.status).toBe(200);
+});
+
+// TODO: write test for functionality of list users
