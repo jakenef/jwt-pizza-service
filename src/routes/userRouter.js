@@ -37,10 +37,10 @@ userRouter.docs = [
   },
   {
     method: "GET",
-    path: "/api/user?page=1&limit=10&name=*",
+    path: "/api/user?page=0&limit=10&name=*",
     requiresAuth: true,
     description: "Gets a list of users",
-    example: `curl -X GET localhost:3000/api/user -H 'Authorization: Bearer tttttt'`,
+    example: `curl -X GET localhost:3000/api/user?page=0&limit=10 -H 'Authorization: Bearer tttttt'`,
     response: {
       users: [
         {

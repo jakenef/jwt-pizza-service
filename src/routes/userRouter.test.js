@@ -70,24 +70,24 @@ test("list users functionality: returns users, paginates, filters by name", asyn
 
   // 1. List all users (default pagination)
   const resAll = await request(app)
-    .get("/api/user?page=1&limit=10")
+    .get("/api/user?page=0&limit=100")
     .set("Authorization", `Bearer ${authToken}`);
   expect(resAll.status).toBe(200);
   expect(Array.isArray(resAll.body.users)).toBe(true);
   expect(resAll.body.users.length).toBeGreaterThanOrEqual(5);
-  expect(resAll.body).toHaveProperty("more");
+  expect(typeof resAll.body.more).toBe("boolean");
 
-  // 2. Pagination: limit=2, page=1 (more may be true if >2 users)
+  // 2. Pagination: limit=2, page=0 (first page)
   const resPage1 = await request(app)
-    .get("/api/user?page=1&limit=2")
+    .get("/api/user?page=0&limit=2")
     .set("Authorization", `Bearer ${authToken}`);
   expect(resPage1.status).toBe(200);
   expect(resPage1.body.users.length).toBeLessThanOrEqual(2);
   expect(typeof resPage1.body.more).toBe("boolean");
 
-  // 3. Pagination: limit=2, page=2
+  // 3. Pagination: limit=2, page=1 (second page)
   const resPage2 = await request(app)
-    .get("/api/user?page=2&limit=2")
+    .get("/api/user?page=1&limit=2")
     .set("Authorization", `Bearer ${authToken}`);
   expect(resPage2.status).toBe(200);
   expect(resPage2.body.users.length).toBeLessThanOrEqual(2);
@@ -96,7 +96,7 @@ test("list users functionality: returns users, paginates, filters by name", asyn
   // 4. Name filter: use a known user's name
   const filterName = users[1].user.name;
   const resFilter = await request(app)
-    .get(`/api/user?page=1&limit=10&name=${encodeURIComponent(filterName)}`)
+    .get(`/api/user?page=0&limit=10&name=${encodeURIComponent(filterName)}`)
     .set("Authorization", `Bearer ${authToken}`);
   expect(resFilter.status).toBe(200);
   expect(resFilter.body.users.some((u) => u.name === filterName)).toBe(true);
