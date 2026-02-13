@@ -58,4 +58,52 @@ test("list users", async () => {
   expect(listUsersRes.status).toBe(200);
 });
 
-// TODO: write test for functionality of list users
+test("list users functionality: returns users, paginates, filters by name", async () => {
+  // Register multiple users
+  const users = [];
+  for (let i = 0; i < 5; i++) {
+    const [user, token] = await registerUser(request(app));
+    users.push({ user, token });
+  }
+
+  const authToken = users[0].token;
+
+  // 1. List all users (default pagination)
+  const resAll = await request(app)
+    .get("/api/user?page=1&limit=10")
+    .set("Authorization", `Bearer ${authToken}`);
+  expect(resAll.status).toBe(200);
+  expect(Array.isArray(resAll.body.users)).toBe(true);
+  expect(resAll.body.users.length).toBeGreaterThanOrEqual(5);
+  expect(resAll.body).toHaveProperty("more");
+
+  // 2. Pagination: limit=2, page=1 (more may be true if >2 users)
+  const resPage1 = await request(app)
+    .get("/api/user?page=1&limit=2")
+    .set("Authorization", `Bearer ${authToken}`);
+  expect(resPage1.status).toBe(200);
+  expect(resPage1.body.users.length).toBeLessThanOrEqual(2);
+  expect(typeof resPage1.body.more).toBe("boolean");
+
+  // 3. Pagination: limit=2, page=2
+  const resPage2 = await request(app)
+    .get("/api/user?page=2&limit=2")
+    .set("Authorization", `Bearer ${authToken}`);
+  expect(resPage2.status).toBe(200);
+  expect(resPage2.body.users.length).toBeLessThanOrEqual(2);
+  expect(typeof resPage2.body.more).toBe("boolean");
+
+  // 4. Name filter: use a known user's name
+  const filterName = users[1].user.name;
+  const resFilter = await request(app)
+    .get(`/api/user?page=1&limit=10&name=${encodeURIComponent(filterName)}`)
+    .set("Authorization", `Bearer ${authToken}`);
+  expect(resFilter.status).toBe(200);
+  expect(resFilter.body.users.some((u) => u.name === filterName)).toBe(true);
+  expect(typeof resFilter.body.more).toBe("boolean");
+
+  // Clean up: delete created users
+  for (const { user } of users) {
+    await request(app).delete(`/api/user/${user.id}`);
+  }
+});
