@@ -40,8 +40,30 @@ test("update user", async () => {
 });
 
 test("delete user", async () => {
-  const deleteUserRes = await request(app).delete(`/api/user/${testUserId}`);
-  expect(deleteUserRes).toBeDefined();
+  // First, verify the user exists in the list
+  const listBeforeRes = await request(app)
+    .get(`/api/user?name=${encodeURIComponent(testUser.name)}&limit=100`)
+    .set("Authorization", `Bearer ${testUserAuthToken}`);
+  expect(listBeforeRes.status).toBe(200);
+  const userExistsBefore = listBeforeRes.body.users.some(
+    (u) => u.id === testUserId,
+  );
+  expect(userExistsBefore).toBe(true); // User should exist before deletion
+
+  // Delete the user
+  const deleteUserRes = await request(app)
+    .delete(`/api/user/${testUserId}`)
+    .set("Authorization", `Bearer ${testUserAuthToken}`);
+
+  // Check response status and body
+  expect(deleteUserRes.status).toBe(200);
+  expect(deleteUserRes.body).toHaveProperty("message");
+
+  // Verify the user is no longer in the list
+  const listAfterRes = await request(app)
+    .get(`/api/user?name=${encodeURIComponent(testUser.name)}&limit=100`)
+    .set("Authorization", `Bearer ${testUserAuthToken}`);
+  expect(listAfterRes.status).toBe(401); // Token is invalid after user deletion
 });
 
 test("list users unauthorized", async () => {
