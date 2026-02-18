@@ -110,7 +110,12 @@ class DB {
   async getUsers(authUser, page = 0, limit = 10, nameFilter = "*") {
     const connection = await this.getConnection();
     const offset = page * limit;
+    // If the filter is not a full wildcard, wrap with % for substring matching
     nameFilter = nameFilter.replace(/\*/g, "%");
+    if (nameFilter !== "%") {
+      if (!nameFilter.startsWith("%")) nameFilter = "%" + nameFilter;
+      if (!nameFilter.endsWith("%")) nameFilter = nameFilter + "%";
+    }
     try {
       let users = await this.query(
         connection,
