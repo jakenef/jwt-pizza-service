@@ -3,7 +3,7 @@
 const request = require("supertest");
 const app = require("../service");
 
-const { createAdminUser, randomName } = require("../utils/test/dataHelpers");
+const { createAdminUser, randomName, registerUser } = require("../utils/test/dataHelpers");
 
 let adminToken, adminUser, franchiseId, storeId;
 
@@ -83,4 +83,24 @@ test("delete franchise", async () => {
   const res = await request(app).delete(`/api/franchise/${franchiseId}`);
 
   expect(res.body).toEqual({ message: "franchise deleted" });
+});
+
+test("create franchise unauthorized", async () => {
+  const [, userToken] = await registerUser(request(app));
+  const res = await request(app)
+    .post("/api/franchise")
+    .set("Authorization", `Bearer ${userToken}`)
+    .send({ name: "hacker franchise", admins: [] });
+
+  expect(res.status).toBe(403);
+});
+
+test("create store unauthorized", async () => {
+  const [, userToken] = await registerUser(request(app));
+  const res = await request(app)
+    .post(`/api/franchise/${franchiseId}/store`)
+    .set("Authorization", `Bearer ${userToken}`)
+    .send({ name: "hacker store" });
+
+  expect(res.status).toBe(403);
 });
