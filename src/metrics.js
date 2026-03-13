@@ -1,20 +1,38 @@
 const config = require("./config");
 
 let totalRequests = 0;
+const endpointRequests = {};
 
 function requestTracker(req, res, next) {
   totalRequests++;
-  console.log(`[Metrics] Request received. Total: ${totalRequests}`);
+  const endpoint = req.path;
+  const method = req.method;
+  const key = `${method} ${endpoint}`;
+
+  if (!endpointRequests[key]) {
+    endpointRequests[key] = { count: 0, method, endpoint };
+  }
+  endpointRequests[key].count++;
   next();
 }
 
 setInterval(() => {
-  console.log(`[Metrics] Sending ${totalRequests} requests to Grafana...`);
   const metrics = [
     createMetric("request", totalRequests, "1", "sum", "asInt", {
       type: "total",
     }),
   ];
+
+  Object.keys(endpointRequests).forEach((key) => {
+    const data = endpointRequests[key];
+    metrics.push(
+      createMetric("request", data.count, "1", "sum", "asInt", {
+        type: "endpoint",
+        endpoint: data.endpoint,
+        method: data.method,
+      }),
+    );
+  });
 
   sendMetricToGrafana(metrics);
 }, 10000);
