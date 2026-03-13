@@ -2,6 +2,8 @@ const config = require("./config");
 
 const methodRequests = {};
 const activeUsers = new Map(); // Map of userId -> lastActivityTimestamp
+let authSuccess = 0;
+let authFailure = 0;
 
 function requestTracker(req, res, next) {
   const method = req.method;
@@ -10,6 +12,20 @@ function requestTracker(req, res, next) {
   if (req.user) {
     activeUsers.set(req.user.id, Date.now());
   }
+
+  // Track Auth Attempts (Login/Register)
+  res.on("finish", () => {
+    if (
+      (method === "POST" || method === "PUT") &&
+      req.path === "/api/auth"
+    ) {
+      if (res.statusCode < 400) {
+        authSuccess++;
+      } else {
+        authFailure++;
+      }
+    }
+  });
 
   next();
 }
@@ -33,9 +49,20 @@ setInterval(() => {
       activeUsers.delete(userId);
     }
   }
-
   metrics.push(
     createMetric("activeUsers", activeUsers.size, "1", "sum", "asInt", {}),
+  );
+
+  // 3. Report Auth Attempts
+  metrics.push(
+    createMetric("authAttempt", authSuccess, "1", "sum", "asInt", {
+      result: "success",
+    }),
+  );
+  metrics.push(
+    createMetric("authAttempt", authFailure, "1", "sum", "asInt", {
+      result: "failure",
+    }),
   );
 
   sendMetricToGrafana(metrics);
