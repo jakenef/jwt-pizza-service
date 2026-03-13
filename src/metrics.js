@@ -1,35 +1,20 @@
 const config = require("./config");
 
-let totalRequests = 0;
-const endpointRequests = {};
+const methodRequests = {};
 
 function requestTracker(req, res, next) {
-  totalRequests++;
-  const endpoint = req.path;
   const method = req.method;
-  const key = `${method} ${endpoint}`;
-
-  if (!endpointRequests[key]) {
-    endpointRequests[key] = { count: 0, method, endpoint };
-  }
-  endpointRequests[key].count++;
+  methodRequests[method] = (methodRequests[method] || 0) + 1;
   next();
 }
 
 setInterval(() => {
-  const metrics = [
-    createMetric("request", totalRequests, "1", "sum", "asInt", {
-      type: "total",
-    }),
-  ];
+  const metrics = [];
 
-  Object.keys(endpointRequests).forEach((key) => {
-    const data = endpointRequests[key];
+  Object.keys(methodRequests).forEach((method) => {
     metrics.push(
-      createMetric("request", data.count, "1", "sum", "asInt", {
-        type: "endpoint",
-        endpoint: data.endpoint,
-        method: data.method,
+      createMetric("request", methodRequests[method], "1", "sum", "asInt", {
+        method: method,
       }),
     );
   });
