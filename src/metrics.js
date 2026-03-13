@@ -4,10 +4,12 @@ let totalRequests = 0;
 
 function requestTracker(req, res, next) {
   totalRequests++;
+  console.log(`[Metrics] Request received. Total: ${totalRequests}`);
   next();
 }
 
 setInterval(() => {
+  console.log(`[Metrics] Sending ${totalRequests} requests to Grafana...`);
   const metrics = [
     createMetric("request", totalRequests, "1", "sum", "asInt", {
       type: "total",
