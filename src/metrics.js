@@ -1,16 +1,23 @@
 const config = require("./config");
 
 const methodRequests = {};
+const activeUsers = new Map(); // Map of userId -> lastActivityTimestamp
 
 function requestTracker(req, res, next) {
   const method = req.method;
   methodRequests[method] = (methodRequests[method] || 0) + 1;
+
+  if (req.user) {
+    activeUsers.set(req.user.id, Date.now());
+  }
+
   next();
 }
 
 setInterval(() => {
   const metrics = [];
 
+  // 1. Report Requests by Method
   Object.keys(methodRequests).forEach((method) => {
     metrics.push(
       createMetric("request", methodRequests[method], "1", "sum", "asInt", {
@@ -18,6 +25,18 @@ setInterval(() => {
       }),
     );
   });
+
+  // 2. Report Active Users (Last 5 Minutes)
+  const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+  for (const [userId, lastActivity] of activeUsers) {
+    if (lastActivity < fiveMinutesAgo) {
+      activeUsers.delete(userId);
+    }
+  }
+
+  metrics.push(
+    createMetric("activeUsers", activeUsers.size, "1", "sum", "asInt", {}),
+  );
 
   sendMetricToGrafana(metrics);
 }, 10000);
