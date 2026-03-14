@@ -1,11 +1,21 @@
 const config = require("./config");
+const os = require("os");
 
 const methodRequests = {};
 const activeUsers = new Map(); // Map of userId -> lastActivityTimestamp
 let authSuccess = 0;
 let authFailure = 0;
+let pizzasSold = 0;
+let pizzaRevenue = 0;
+let pizzaFailures = 0;
+let endpointLatencyTotal = 0;
+let endpointLatencyCount = 0;
+let pizzaLatencyTotal = 0;
+let pizzaLatencyCount = 0;
 
 function requestTracker(req, res, next) {
+  const start = Date.now(); // latency timer
+
   const method = req.method;
   methodRequests[method] = (methodRequests[method] || 0) + 1;
 
@@ -13,11 +23,16 @@ function requestTracker(req, res, next) {
     activeUsers.set(req.user.id, Date.now());
   }
 
-  // Track Auth Attempts (Login/Register)
+  next();
+
   res.on("finish", () => {
+    const latency = Date.now() - start;
+    endpointLatencyTotal += latency;
+    endpointLatencyCount++;
+
     if (
       (method === "POST" || method === "PUT") &&
-      req.path === "/api/auth"
+      req.originalUrl.startsWith("/api/auth")
     ) {
       if (res.statusCode < 400) {
         authSuccess++;
@@ -26,8 +41,34 @@ function requestTracker(req, res, next) {
       }
     }
   });
+}
 
-  next();
+function recordPizzaSale(success, price, latency = 0) {
+  if (success) {
+    pizzasSold++;
+    pizzaRevenue += price;
+    pizzaLatencyTotal += latency;
+    pizzaLatencyCount++;
+  } else {
+    pizzaFailures++;
+    if (latency > 0) {
+      pizzaLatencyTotal += latency;
+      pizzaLatencyCount++;
+    }
+  }
+}
+
+function getCpuUsagePercentage() {
+  const cpuUsage = os.loadavg()[0] / os.cpus().length;
+  return parseFloat((cpuUsage * 100).toFixed(2));
+}
+
+function getMemoryUsagePercentage() {
+  const totalMemory = os.totalmem();
+  const freeMemory = os.freemem();
+  const usedMemory = totalMemory - freeMemory;
+  const memoryUsage = (usedMemory / totalMemory) * 100;
+  return parseFloat(memoryUsage.toFixed(2));
 }
 
 setInterval(() => {
@@ -64,6 +105,68 @@ setInterval(() => {
       result: "failure",
     }),
   );
+
+  // 4. Report System Metrics
+  metrics.push(
+    createMetric(
+      "cpuUsage",
+      getCpuUsagePercentage(),
+      "1",
+      "gauge",
+      "asDouble",
+      {},
+    ),
+  );
+  metrics.push(
+    createMetric(
+      "memoryUsage",
+      getMemoryUsagePercentage(),
+      "1",
+      "gauge",
+      "asDouble",
+      {},
+    ),
+  );
+
+  // 5. Report Pizza Metrics
+  metrics.push(createMetric("pizzasSold", pizzasSold, "1", "sum", "asInt", {}));
+  metrics.push(
+    createMetric("pizzaRevenue", pizzaRevenue, "1", "sum", "asDouble", {}),
+  );
+  metrics.push(
+    createMetric("pizzaFailures", pizzaFailures, "1", "sum", "asInt", {}),
+  );
+
+  // 6. Report Latency Metrics
+  const avgEndpointLatency =
+    endpointLatencyCount > 0 ? endpointLatencyTotal / endpointLatencyCount : 0;
+  metrics.push(
+    createMetric(
+      "endpointLatency",
+      avgEndpointLatency,
+      "ms",
+      "gauge",
+      "asDouble",
+      {},
+    ),
+  );
+  endpointLatencyTotal = 0;
+  endpointLatencyCount = 0;
+
+  const avgPizzaLatency =
+    pizzaLatencyCount > 0 ? pizzaLatencyTotal / pizzaLatencyCount : 0;
+  metrics.push(
+    createMetric(
+      "pizzaLatency",
+      avgPizzaLatency,
+      "ms",
+      "gauge",
+      "asDouble",
+      {},
+    ),
+  );
+  pizzaLatencyTotal = 0;
+  pizzaLatencyCount = 0;
 
   sendMetricToGrafana(metrics);
 }, 10000);
@@ -139,4 +242,4 @@ function sendMetricToGrafana(metrics) {
     });
 }
 
-module.exports = { requestTracker };
+module.exports = { requestTracker, recordPizzaSale };
