@@ -65,7 +65,8 @@ describe('Metrics', () => {
       jest.advanceTimersByTime(10000);
       
       expect(global.fetch).toHaveBeenCalled();
-      const lastCallBody = JSON.parse(global.fetch.mock.calls[0][1].body);
+      const metricsCall = global.fetch.mock.calls.find(call => call[1].body.includes('resourceMetrics'));
+      const lastCallBody = JSON.parse(metricsCall[1].body);
       const reportedMetrics = lastCallBody.resourceMetrics[0].scopeMetrics[0].metrics;
       
       expect(reportedMetrics.some(m => m.name === 'request')).toBe(true);
@@ -76,7 +77,8 @@ describe('Metrics', () => {
         await request(app).get('/');
 
         jest.advanceTimersByTime(10000);
-        const lastCallBody = JSON.parse(global.fetch.mock.calls[global.fetch.mock.calls.length - 1][1].body);
+        const metricsCall = global.fetch.mock.calls.find(call => call[1].body.includes('resourceMetrics'));
+        const lastCallBody = JSON.parse(metricsCall[1].body);
         const reportedMetrics = lastCallBody.resourceMetrics[0].scopeMetrics[0].metrics;
         const activeUsersMetric = reportedMetrics.find(m => m.name === 'activeUsers');
         
@@ -89,7 +91,8 @@ describe('Metrics', () => {
       metrics.recordPizzaSale(true, 10.5, 100);
       
       jest.advanceTimersByTime(10000);
-      const lastCallBody = JSON.parse(global.fetch.mock.calls[global.fetch.mock.calls.length - 1][1].body);
+      const metricsCall = global.fetch.mock.calls.find(call => call[1].body.includes('resourceMetrics'));
+      const lastCallBody = JSON.parse(metricsCall[1].body);
       const reportedMetrics = lastCallBody.resourceMetrics[0].scopeMetrics[0].metrics;
       
       const sold = reportedMetrics.find(m => m.name === 'pizzasSold');
@@ -103,7 +106,8 @@ describe('Metrics', () => {
       metrics.recordPizzaSale(false, 0, 50);
       
       jest.advanceTimersByTime(10000);
-      const lastCallBody = JSON.parse(global.fetch.mock.calls[global.fetch.mock.calls.length - 1][1].body);
+      const metricsCall = global.fetch.mock.calls.find(call => call[1].body.includes('resourceMetrics'));
+      const lastCallBody = JSON.parse(metricsCall[1].body);
       const reportedMetrics = lastCallBody.resourceMetrics[0].scopeMetrics[0].metrics;
       
       const failures = reportedMetrics.find(m => m.name === 'pizzaFailures');
@@ -114,7 +118,8 @@ describe('Metrics', () => {
   describe('System Metrics', () => {
       test('reports cpu and memory usage', () => {
           jest.advanceTimersByTime(10000);
-          const lastCallBody = JSON.parse(global.fetch.mock.calls[global.fetch.mock.calls.length - 1][1].body);
+          const metricsCall = global.fetch.mock.calls.find(call => call[1].body.includes('resourceMetrics'));
+          const lastCallBody = JSON.parse(metricsCall[1].body);
           const reportedMetrics = lastCallBody.resourceMetrics[0].scopeMetrics[0].metrics;
           
           const cpu = reportedMetrics.find(m => m.name === 'cpuUsage');
