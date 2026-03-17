@@ -23,7 +23,7 @@ class Logger {
         if (typeof resBody === 'string') {
           resBodyData = JSON.parse(resBody);
         }
-      } catch (e) {
+      } catch {
         // Keep as string if not valid JSON
       }
 
