@@ -13,16 +13,31 @@ class Logger {
 
     let send = res.send;
     res.send = (resBody) => {
+      // Guard against multiple calls to res.send/res.json
+      if (res.headersSent) {
+        return send.call(res, resBody);
+      }
+
+      let resBodyData = resBody;
+      try {
+        if (typeof resBody === 'string') {
+          resBodyData = JSON.parse(resBody);
+        }
+      } catch (e) {
+        // Keep as string if not valid JSON
+      }
+
       const logData = {
         authorized: !!req.headers.authorization,
         path: req.path,
         method: req.method,
         statusCode: res.statusCode,
-        reqBody: JSON.stringify(req.body),
-        resBody: JSON.stringify(resBody),
+        reqBody: req.body,
+        resBody: resBodyData,
       };
       const level = this.statusToLogLevel(res.statusCode);
       this.log(level, 'http', logData);
+
       res.send = send;
       return res.send(resBody);
     };
