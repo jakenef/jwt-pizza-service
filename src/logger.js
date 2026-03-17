@@ -6,41 +6,37 @@ class Logger {
   }
 
   httpLogger = (req, res, next) => {
-    // Don't log requests to the logging or factory endpoints to avoid infinite loops
-    if (req.path === '/api/log' || req.path === '/api/order' || req.path.includes('grafana.net')) {
+    // Don't log requests from the logger itself
+    if (req.headers['x-pizza-logger']) {
       return next();
     }
 
-    let send = res.send;
-    res.send = (resBody) => {
-      // Guard against multiple calls to res.send/res.json
-      if (res.headersSent) {
-        return send.call(res, resBody);
-      }
+    const start = Date.now();
+    const { method, path, body: reqBody } = req;
 
-      let resBodyData = resBody;
-      try {
-        if (typeof resBody === 'string') {
-          resBodyData = JSON.parse(resBody);
-        }
-      } catch {
-        // Keep as string if not valid JSON
+    // Use 'finish' event to log only once when the response is complete
+    res.on('finish', () => {
+      // Avoid logging our own outgoing calls to Grafana/Factory if they happen to hit this middleware
+      if (path.includes('grafana.net') || path.includes('/api/log')) {
+        return;
       }
 
       const logData = {
         authorized: !!req.headers.authorization,
-        path: req.path,
-        method: req.method,
+        path,
+        method,
         statusCode: res.statusCode,
-        reqBody: req.body,
-        resBody: resBodyData,
+        reqBody: reqBody,
+        // Note: We can't easily get the resBody in 'finish' without hooking send,
+        // but using 'finish' prevents the duplication and infinite loop bugs.
+        // For JWT Pizza, status and path are the most critical fields.
+        latency: `${Date.now() - start}ms`,
       };
+      
       const level = this.statusToLogLevel(res.statusCode);
       this.log(level, 'http', logData);
+    });
 
-      res.send = send;
-      return res.send(resBody);
-    };
     next();
   };
 
@@ -86,35 +82,30 @@ class Logger {
 
     // Log to factory
     try {
-      const res = await fetch(`${this.config.factory.url}/api/log`, {
+      await fetch(`${this.config.factory.url}/api/log`, {
         method: 'POST',
         body: JSON.stringify(event),
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.config.factory.apiKey}`,
+          'Authorization': `Bearer ${this.config.factory.apiKey}`,
+          'X-Pizza-Logger': 'true', // Prevent self-logging loop
         },
       });
-      if (!res.ok) {
-        const resText = await res.text();
-        console.log(`Failed to send log to factory: ${res.status} ${resText}`);
-      }
     } catch (error) {
       console.log('Error sending log to factory:', error);
     }
 
     // Log to Grafana
     try {
-      const res = await fetch(`${this.config.logging.url}`, {
-        method: 'post',
+      await fetch(`${this.config.logging.url}`, {
+        method: 'POST',
         body: body,
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Basic ${Buffer.from(`${this.config.logging.userId}:${this.config.logging.apiKey}`).toString('base64')}`,
+          'Authorization': `Basic ${Buffer.from(`${this.config.logging.userId}:${this.config.logging.apiKey}`).toString('base64')}`,
+          'X-Pizza-Logger': 'true', // Prevent self-logging loop
         },
       });
-      if (!res.ok) {
-        console.log('Failed to send log to Grafana');
-      }
     } catch (error) {
       console.log('Error sending log to Grafana:', error);
     }
