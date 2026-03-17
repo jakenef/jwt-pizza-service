@@ -6,6 +6,11 @@ class Logger {
   }
 
   httpLogger = (req, res, next) => {
+    // Don't log requests to the logging or factory endpoints to avoid infinite loops
+    if (req.path === '/api/log' || req.path === '/api/order' || req.path.includes('grafana.net')) {
+      return next();
+    }
+
     let send = res.send;
     res.send = (resBody) => {
       const logData = {
