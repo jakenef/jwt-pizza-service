@@ -6,9 +6,11 @@ const userRouter = require('./routes/userRouter.js');
 const version = require('./version.json');
 const config = require('./config.js');
 const { requestTracker } = require('./metrics.js');
+const logger = require('./logger.js');
 
 const app = express();
 app.use(express.json());
+app.use(logger.httpLogger);
 app.use(setAuthUser);
 app.use(requestTracker);
 app.use((req, res, next) => {
