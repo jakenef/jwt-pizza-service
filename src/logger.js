@@ -26,10 +26,8 @@ class Logger {
             path,
             method,
             statusCode: res.statusCode,
-            body: JSON.stringify({
-              request: reqBody,
-              response: resBody,
-            }),
+            body_req: JSON.stringify(reqBody),
+            body_res: JSON.stringify(resBody),
             latency: `${Date.now() - start}ms`,
           };
 
@@ -50,10 +48,8 @@ class Logger {
   factoryLogger(reqBody, resBody, statusCode, latency) {
     this.log('info', 'factory', {
       statusCode,
-      body: JSON.stringify({
-        request: reqBody,
-        response: resBody,
-      }),
+      body_req: JSON.stringify(reqBody),
+      body_res: JSON.stringify(resBody),
       latency: `${latency}ms`,
     });
   }
