@@ -47,12 +47,19 @@ class Logger {
     this.log('info', 'db', query);
   }
 
-  factoryLogger(orderInfo) {
-    this.log('info', 'factory', orderInfo);
+  factoryLogger(reqBody, resBody, statusCode, latency) {
+    this.log('info', 'factory', {
+      statusCode,
+      body: JSON.stringify({
+        request: reqBody,
+        response: resBody,
+      }),
+      latency: `${latency}ms`,
+    });
   }
 
   unhandledErrorLogger(err) {
-    this.log('error', 'unhandledError', { message: err.message, status: err.statusCode });
+    this.log('error', 'unhandledError', { message: err.message, status: err.statusCode, stack: err.stack });
   }
 
   log(level, type, logData) {
@@ -77,6 +84,7 @@ class Logger {
     logData = JSON.stringify(logData);
     logData = logData.replace(/\\"password\\":\s*\\"[^"]*\\"/g, '\\"password\\": \\"*****\\"');
     logData = logData.replace(/\\password\\=\s*\\"[^"]*\\"/g, '\\"password\\": \\"*****\\"');
+    logData = logData.replace(/\\"jwt\\":\s*\\"[^"]*\\"/g, '\\"jwt\\": \\"*****\\"');
     return logData;
   }
 
