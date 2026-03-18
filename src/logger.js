@@ -13,29 +13,32 @@ class Logger {
 
     const start = Date.now();
     const { method, path, body: reqBody } = req;
+    let logged = false;
 
-    // Use 'finish' event to log only once when the response is complete
-    res.on('finish', () => {
-      // Avoid logging our own outgoing calls to Grafana/Factory if they happen to hit this middleware
-      if (path.includes('grafana.net') || path.includes('/api/log')) {
-        return;
+    const originalSend = res.send;
+    res.send = (resBody) => {
+      if (!logged) {
+        logged = true;
+        // Avoid logging our own outgoing calls to Grafana/Factory
+        if (!path.includes('grafana.net') && !path.includes('/api/log')) {
+          const logData = {
+            authorized: !!req.headers.authorization,
+            path,
+            method,
+            statusCode: res.statusCode,
+            body: JSON.stringify({
+              request: reqBody,
+              response: resBody,
+            }),
+            latency: `${Date.now() - start}ms`,
+          };
+
+          const level = this.statusToLogLevel(res.statusCode);
+          this.log(level, 'http', logData);
+        }
       }
-
-      const logData = {
-        authorized: !!req.headers.authorization,
-        path,
-        method,
-        statusCode: res.statusCode,
-        reqBody: reqBody,
-        // Note: We can't easily get the resBody in 'finish' without hooking send,
-        // but using 'finish' prevents the duplication and infinite loop bugs.
-        // For JWT Pizza, status and path are the most critical fields.
-        latency: `${Date.now() - start}ms`,
-      };
-      
-      const level = this.statusToLogLevel(res.statusCode);
-      this.log(level, 'http', logData);
-    });
+      return originalSend.call(res, resBody);
+    };
 
     next();
   };
