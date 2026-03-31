@@ -129,6 +129,7 @@ orderRouter.post(
   authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
     if (enableChaos && Math.random() < 0.5) {
+      recordPizzaSale(false, 0, 0);
       throw new StatusCodeError("Chaos monkey", 500);
     }
 
