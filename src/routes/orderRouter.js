@@ -78,6 +78,19 @@ orderRouter.docs = [
   },
 ];
 
+let enableChaos = false;
+orderRouter.put(
+  "/chaos/:state",
+  authRouter.authenticateToken,
+  asyncHandler(async (req, res) => {
+    if (req.user.isRole(Role.Admin)) {
+      enableChaos = req.params.state === "true";
+    }
+
+    res.json({ chaos: enableChaos });
+  }),
+);
+
 // getMenu
 orderRouter.get(
   "/menu",
@@ -115,6 +128,10 @@ orderRouter.post(
   "/",
   authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
+    if (enableChaos && Math.random() < 0.5) {
+      throw new StatusCodeError("Chaos monkey", 500);
+    }
+
     const orderReq = req.body;
     const order = await DB.addDinerOrder(req.user, orderReq);
     const start = Date.now();
@@ -134,7 +151,10 @@ orderRouter.post(
     const latency = Date.now() - start;
     logger.factoryLogger(factoryReqBody, j, r.status, latency);
     if (r.ok) {
-      const totalRevenue = order.items.reduce((acc, item) => acc + item.price, 0);
+      const totalRevenue = order.items.reduce(
+        (acc, item) => acc + item.price,
+        0,
+      );
       recordPizzaSale(true, totalRevenue, latency);
       res.send({ order, followLinkToEndChaos: j.reportUrl, jwt: j.jwt });
     } else {
