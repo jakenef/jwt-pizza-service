@@ -3,7 +3,11 @@
 const request = require("supertest");
 const app = require("../service");
 
-const { createAdminUser, randomName, registerUser } = require("../utils/test/dataHelpers");
+const {
+  createAdminUser,
+  randomName,
+  registerUser,
+} = require("../utils/test/dataHelpers");
 
 let adminToken, adminUser, franchiseId, storeId;
 
@@ -80,9 +84,17 @@ test("delete store", async () => {
 });
 
 test("delete franchise", async () => {
-  const res = await request(app).delete(`/api/franchise/${franchiseId}`);
+  const res = await request(app)
+    .delete(`/api/franchise/${franchiseId}`)
+    .set("Authorization", `Bearer ${adminToken}`);
 
   expect(res.body).toEqual({ message: "franchise deleted" });
+});
+
+test("delete franchise unauthorized", async () => {
+  const res = await request(app).delete(`/api/franchise/${franchiseId}`);
+
+  expect(res.status).toBe(401);
 });
 
 test("create franchise unauthorized", async () => {

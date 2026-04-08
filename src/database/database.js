@@ -176,11 +176,19 @@ class DB {
     const connection = await this.getConnection();
     try {
       // Delete user roles
-      await this.query(connection, `DELETE FROM userRole WHERE userId = ?`, [userId]);
+      await this.query(connection, `DELETE FROM userRole WHERE userId = ?`, [
+        userId,
+      ]);
       // Delete auth tokens
-      await this.query(connection, `DELETE FROM auth WHERE userId = ?`, [userId]);
+      await this.query(connection, `DELETE FROM auth WHERE userId = ?`, [
+        userId,
+      ]);
       // Delete user
-      const result = await this.query(connection, `DELETE FROM user WHERE id = ?`, [userId]);
+      const result = await this.query(
+        connection,
+        `DELETE FROM user WHERE id = ?`,
+        [userId],
+      );
       return result.affectedRows > 0;
     } finally {
       connection.end();
@@ -400,6 +408,15 @@ class DB {
   async getFranchise(franchise) {
     const connection = await this.getConnection();
     try {
+      const franchiseExists = await this.query(
+        connection,
+        `SELECT id FROM franchise WHERE id=?`,
+        [franchise.id],
+      );
+      if (franchiseExists.length === 0) {
+        return null;
+      }
+
       franchise.admins = await this.query(
         connection,
         `SELECT u.id, u.name, u.email FROM userRole AS ur JOIN user AS u ON u.id=ur.userId WHERE ur.objectId=? AND ur.role='franchisee'`,
